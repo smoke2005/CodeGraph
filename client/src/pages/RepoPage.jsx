@@ -21,9 +21,13 @@ function RepoPage() {
     };
 
     const checkAST = () => {
-      const ast = localStorage.getItem("latestAST");
-      console.log("🧬 AST in localStorage:", ast);
-      setAstAvailable(!!ast);
+      try {
+        const astData = JSON.parse(localStorage.getItem('ast'));
+        setAstAvailable(!!astData);
+      } catch (error) {
+        console.error('Error parsing AST data:', error);
+        setAstAvailable(false);
+      }
     };
 
     fetchRepo();

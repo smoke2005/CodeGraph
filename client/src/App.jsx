@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import TreeViewer from "./TreeViewer";
 import "./styles.css"; // Starry/gradient styling
+import { parseCode } from './api';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -14,6 +15,7 @@ function App() {
   const [ast, setAst] = useState(null);
   const [analyzing, setAnalyzing] = useState(false); // new
   const navigate = useNavigate();
+  // Add before API calls
 
   useEffect(() => {
     const getData = async () => {
@@ -45,37 +47,78 @@ function App() {
   );
 
   const fetchRepoDetails = async (repo) => {
-    const { data: session } = await supabase.auth.getSession();
-    const token = session?.session?.provider_token;
-
-    const [contentRes, statsRes] = await Promise.all([
-      fetch(`http://localhost:8080/api/github/repo-content?owner=${repo.owner.login}&repo=${repo.name}`, {
-        headers: { Authorization: `token ${token}` }
-      }),
-      fetch(`http://localhost:8080/api/github/repo-stats?owner=${repo.owner.login}&repo=${repo.name}`, {
-        headers: { Authorization: `token ${token}` }
-      })
-    ]);
-
-    const contents = await contentRes.json();
-    const stats = await statsRes.json();
-
-    const targetFile = contents.find(file => file.name.endsWith(".js"));
-    let parsedAst = null;
-
-    if (targetFile) {
-      const rawCode = atob(targetFile.content);
-      const astRes = await fetch("http://localhost:8080/api/tree/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: rawCode, language: "javascript" })
-      });
-      parsedAst = await astRes.json();
+    setAnalyzing(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.provider_token;
+  
+      const [contentRes, statsRes] = await Promise.all([
+        fetch(`http://localhost:8080/api/github/repo-content?owner=${repo.owner.login}&repo=${repo.name}`, {
+          headers: { Authorization: `token ${token}` }
+        }),
+        fetch(`http://localhost:8080/api/github/repo-stats?owner=${repo.owner.login}&repo=${repo.name}`, {
+          headers: { Authorization: `token ${token}` }
+        })
+      ]);
+  
+      const contents = await contentRes.json();
+      const stats = await statsRes.json();
+  
+      const supportedLanguages = {
+        js: "javascript",
+        jsx: "javascript",
+        ts: "typescript",
+        tsx: "typescript",
+        py: "python",
+        java: "java",
+        c: "c",
+        cpp: "cpp",
+        go: "go",
+        rb: "ruby",
+        php: "php",
+        swift: "swift",
+        kt: "kotlin"
+      };
+  
+      const astCollection = [];
+  
+      await Promise.all(contents.map(async (file) => {
+        const ext = file.name.split('.').pop();
+        const lang = supportedLanguages[ext];
+        if (!lang || !file.download_url) return;
+      
+        try {
+          const contentRes = await fetch(file.download_url);
+          const content = await contentRes.text();
+      
+          if (!content || content.trim() === '') return;
+      
+          const parsedAst = await parseCode(content, lang);
+          astCollection.push({ file: file.name, language: lang, ast: parsedAst });
+        } catch (err) {
+          console.warn(`Failed to process ${file.name}:`, err);
+        }
+      }));
+  
+      if (astCollection.length === 0) {
+        throw new Error('No supported files found for AST generation');
+      }
+  
+      localStorage.setItem('ast', JSON.stringify(astCollection));
+      localStorage.setItem('lastRepo', repo.id);
+      setAst(astCollection);
+      setSelectedRepo({ ...repo, contents, stats });
+      //navigate(`/repo/${repo.id}/ast`);
+    } catch (error) {
+      console.error('AST Generation Failed:', error);
+      localStorage.removeItem('ast');
+      alert(`AST Generation Failed: ${error.message}`);
+    } finally {
+      setAnalyzing(false);
     }
-
-    setAst(parsedAst);
-    setSelectedRepo({ ...repo, contents, stats });
   };
+  
+  
 
   if (loading) {
     return (

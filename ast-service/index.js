@@ -1,10 +1,13 @@
 const express = require('express');
+const cors = require('cors');
+
 const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
 const Python = require('tree-sitter-python');
 const Java = require('tree-sitter-java');
 
 const app = express();
+app.use(cors({ origin: 'http://localhost:5173' })); // Add this
 app.use(express.json());
 
 const LANGUAGES = {
