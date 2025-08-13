@@ -4,6 +4,7 @@ import com.codegraph.backend.dto.AstRequest;
 import com.codegraph.backend.service.AstService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api/ast")
@@ -12,7 +13,7 @@ public class CodeAnalysisController {
     @Autowired
     private AstService astService;
 
-    @PostMapping
+    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public String getAst(@RequestBody AstRequest request) {
         return astService.getAst(request.getCode(), request.getLanguage());
     }

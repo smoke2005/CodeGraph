@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import TreeViewer from "./TreeViewer";
 import "./styles.css"; // Starry/gradient styling
@@ -65,7 +65,7 @@ function App() {
 
     if (targetFile) {
       const rawCode = atob(targetFile.content);
-      const astRes = await fetch("http://localhost:8080/api/tree/parse", {
+      const astRes = await fetch("http://localhost:8080/api/ast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: rawCode, language: "javascript" })
